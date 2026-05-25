@@ -195,6 +195,29 @@ scrapes dominate local traffic.
 p95 latency by route answers the follow-up question: "which endpoint is slow?"
 Open a trace from the same time window to see where the time went.
 
+### Runtime Resources
+
+The Runtime Resources row surfaces process-level stress metrics sourced from the
+app's `/metrics` endpoint. No extra infrastructure is required.
+
+**Node.js backends (NestJS, AdonisJS)**
+
+| Panel | Metric | What to look for |
+| --- | --- | --- |
+| CPU Usage | `rate(process_cpu_seconds_total[5m])` | Sustained values near 1.0 (100% of one core) mean the process is compute-bound |
+| Heap Used | `nodejs_heap_size_used_bytes` vs `nodejs_heap_size_total_bytes` | Heap used climbing toward heap total without levelling off indicates a memory leak |
+| Event Loop Lag | `nodejs_eventloop_lag_seconds` | Any value above a few milliseconds means synchronous work is blocking the event loop; latency spikes follow |
+| GC Duration Rate | `rate(nodejs_gc_duration_seconds_sum[5m])` by kind | A rising major-GC rate while heap used stays flat is normal churn; a rising rate while heap used also grows points to allocation pressure |
+
+**Python backends (FastAPI, Django)**
+
+| Panel | Metric | What to look for |
+| --- | --- | --- |
+| CPU Usage | `rate(process_cpu_seconds_total[5m])` | Same as Node; values above 1.0 are possible if the framework spawns threads |
+| Process Memory (RSS) | `process_resident_memory_bytes` | A steadily growing RSS without a matching traffic increase suggests a leak |
+| GC Collection Rate | `rate(python_gc_collections_total[5m])` by generation | Gen-2 collections are expensive; a spike here often precedes latency increases |
+| Open File Descriptors | `process_open_fds` | A monotonically rising count without a traffic increase means file handles or connections are not being closed |
+
 ### Stack Health
 
 The stack dashboard watches the observability tools themselves. Use it when app

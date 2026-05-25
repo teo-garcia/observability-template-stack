@@ -10,6 +10,7 @@ const services = [
     uid: 'backend-nest-template-monolith',
     title: 'NestJS Template Observability',
     slug: 'nestjs-template-observability',
+    runtime: 'node',
   },
   {
     name: 'AdonisJS',
@@ -17,6 +18,7 @@ const services = [
     uid: 'backend-adonis-template-monolith',
     title: 'AdonisJS Template Observability',
     slug: 'adonisjs-template-observability',
+    runtime: 'node',
   },
   {
     name: 'FastAPI',
@@ -24,6 +26,7 @@ const services = [
     uid: 'backend-fastapi-template-monolith',
     title: 'FastAPI Template Observability',
     slug: 'fastapi-template-observability',
+    runtime: 'python',
   },
   {
     name: 'Django',
@@ -31,6 +34,7 @@ const services = [
     uid: 'backend-django-template-monolith',
     title: 'Django Template Observability',
     slug: 'django-template-observability',
+    runtime: 'python',
   },
 ]
 
@@ -254,8 +258,65 @@ function serviceDashboard(service) {
       [target(`backend:http_latency:p95_5m{job="${s}"}`, 'A', '{{route}}')],
       { unit: 's' },
     ),
-    row('Drilldown', 23),
-    table('Recent Traces', 0, 24, 12, 9, tempo, [
+    row('Runtime Resources', 23),
+    ...(service.runtime === 'node'
+      ? [
+          timeseries(
+            'CPU Usage',
+            0, 24, 12, 8,
+            [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
+            { unit: 'percentunit', decimals: 3 },
+          ),
+          timeseries(
+            'Heap Used',
+            12, 24, 12, 8,
+            [
+              target(`nodejs_heap_size_used_bytes{job="${s}"}`, 'A', 'heap used'),
+              target(`nodejs_heap_size_total_bytes{job="${s}"}`, 'B', 'heap total'),
+            ],
+            { unit: 'bytes', decimals: 1 },
+          ),
+          timeseries(
+            'Event Loop Lag',
+            0, 32, 12, 8,
+            [target(`nodejs_eventloop_lag_seconds{job="${s}"}`, 'A', 'event loop lag')],
+            { unit: 's', decimals: 3 },
+          ),
+          timeseries(
+            'GC Duration Rate',
+            12, 32, 12, 8,
+            [target(`rate(nodejs_gc_duration_seconds_sum{job="${s}"}[5m])`, 'A', '{{kind}}')],
+            { unit: 's', decimals: 3 },
+          ),
+        ]
+      : [
+          timeseries(
+            'CPU Usage',
+            0, 24, 12, 8,
+            [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
+            { unit: 'percentunit', decimals: 3 },
+          ),
+          timeseries(
+            'Process Memory (RSS)',
+            12, 24, 12, 8,
+            [target(`process_resident_memory_bytes{job="${s}"}`, 'A', 'RSS')],
+            { unit: 'bytes', decimals: 1 },
+          ),
+          timeseries(
+            'GC Collection Rate',
+            0, 32, 12, 8,
+            [target(`rate(python_gc_collections_total{job="${s}"}[5m])`, 'A', 'gen {{generation}}')],
+            { unit: 'ops', decimals: 2 },
+          ),
+          timeseries(
+            'Open File Descriptors',
+            12, 32, 12, 8,
+            [target(`process_open_fds{job="${s}"}`, 'A', 'open FDs')],
+            { unit: 'short', decimals: 0 },
+          ),
+        ]),
+    row('Drilldown', 40),
+    table('Recent Traces', 0, 41, 12, 9, tempo, [
       {
         refId: 'A',
         query: `{ resource.service.name = "${s}" }`,
@@ -263,8 +324,8 @@ function serviceDashboard(service) {
         limit: 20,
       },
     ]),
-    logs('Error Logs', 12, 24, 12, 9, `{service_name="${s}"} |~ "(?i)(error|exception|traceback|status[^0-9]*5[0-9][0-9])"`),
-    logs('Recent Logs', 0, 33, 24, 8, `{service_name="${s}"}`),
+    logs('Error Logs', 12, 41, 12, 9, `{service_name="${s}"} |~ "(?i)(error|exception|traceback|status[^0-9]*5[0-9][0-9])"`),
+    logs('Recent Logs', 0, 50, 24, 8, `{service_name="${s}"}`),
   )
 
   return dashboard
