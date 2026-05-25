@@ -1,0 +1,25 @@
+name: Docker Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose:
+    name: Validate Compose stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate Compose configuration
+        run: docker compose config
+
+      - name: Pull stack images
+        run: docker compose pull --quiet

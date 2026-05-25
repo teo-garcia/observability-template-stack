@@ -78,6 +78,16 @@ local template practice only.
 
 ---
 
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `make check` | Run Compose and dashboard JSON validation |
+| `make compose-check` | Validate the Docker Compose configuration |
+| `make dashboard-check` | Validate provisioned dashboard JSON files |
+
+---
+
 ## Dashboards
 
 | Template | Dashboard |
