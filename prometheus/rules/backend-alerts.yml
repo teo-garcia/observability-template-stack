@@ -1,4 +1,37 @@
 groups:
+  - name: backend-template-recording-rules
+    interval: 15s
+    rules:
+      - record: backend:http_requests:rate5m
+        expr: sum by (job, method, route, status) (rate(http_requests_total{job=~".*-template-monolith"}[5m]))
+
+      - record: backend:http_5xx:ratio5m
+        expr: |
+          sum by (job) (rate(http_requests_total{job=~".*-template-monolith",status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (job) (rate(http_requests_total{job=~".*-template-monolith"}[5m])), 0.001)
+
+      - record: backend:http_latency:p50_5m
+        expr: |
+          histogram_quantile(
+            0.50,
+            sum by (job, route, le) (rate(http_request_duration_seconds_bucket{job=~".*-template-monolith"}[5m]))
+          )
+
+      - record: backend:http_latency:p95_5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (job, route, le) (rate(http_request_duration_seconds_bucket{job=~".*-template-monolith"}[5m]))
+          )
+
+      - record: backend:http_latency:p99_5m
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, route, le) (rate(http_request_duration_seconds_bucket{job=~".*-template-monolith"}[5m]))
+          )
+
   - name: backend-template-signals
     rules:
       - alert: BackendTargetDown
@@ -10,12 +43,17 @@ groups:
           summary: "{{ $labels.job }} metrics target is down"
           description: "Prometheus cannot scrape {{ $labels.job }}. Check the app container and observability network."
 
+      - alert: BackendNoTraffic
+        expr: sum by (job) (rate(http_requests_total{job=~".*-template-monolith"}[10m])) == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "{{ $labels.job }} has no observed traffic"
+          description: "No HTTP requests have been observed for ten minutes. This is expected when the local template is idle."
+
       - alert: BackendHighErrorRate
-        expr: |
-          sum by (job) (rate(http_requests_total{job=~".*-template-monolith",status=~"5.."}[5m]))
-          /
-          clamp_min(sum by (job) (rate(http_requests_total{job=~".*-template-monolith"}[5m])), 0.001)
-          > 0.05
+        expr: backend:http_5xx:ratio5m > 0.05
         for: 5m
         labels:
           severity: warning
@@ -24,11 +62,7 @@ groups:
           description: "More than 5% of requests returned 5xx for five minutes."
 
       - alert: BackendHighLatencyP95
-        expr: |
-          histogram_quantile(
-            0.95,
-            sum by (job, le) (rate(http_request_duration_seconds_bucket{job=~".*-template-monolith"}[5m]))
-          ) > 0.5
+        expr: max by (job) (backend:http_latency:p95_5m) > 0.5
         for: 5m
         labels:
           severity: warning

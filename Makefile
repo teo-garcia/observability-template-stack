@@ -1,4 +1,4 @@
-.PHONY: check compose-check dashboard-check
+.PHONY: check compose-check dashboard-check dashboard-generate
 
 check: compose-check dashboard-check
 
@@ -7,3 +7,6 @@ compose-check:
 
 dashboard-check:
 	find grafana/provisioning/dashboards -name '*.json' -print0 | xargs -0 -n1 jq empty
+
+dashboard-generate:
+	node scripts/generate-dashboards.mjs

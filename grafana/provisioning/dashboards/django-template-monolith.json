@@ -1,10 +1,11 @@
 {
-  "uid": "backend-django-template-monolith",
   "title": "Django Template Observability",
+  "uid": "backend-django-template-monolith",
   "tags": [
     "backend",
     "template",
-    "django-template-monolith"
+    "django",
+    "observability"
   ],
   "timezone": "browser",
   "schemaVersion": 41,
@@ -14,16 +15,31 @@
     "from": "now-30m",
     "to": "now"
   },
+  "editable": true,
+  "graphTooltip": 1,
   "panels": [
     {
       "id": 1,
+      "type": "row",
+      "title": "Service Health",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
       "type": "stat",
       "title": "Scrape Health",
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 1,
         "w": 4,
-        "h": 5
+        "h": 4
       },
       "datasource": {
         "type": "prometheus",
@@ -37,20 +53,105 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
-      "id": 2,
+      "id": 3,
+      "type": "stat",
+      "title": "Availability %",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - (sum(rate(http_requests_total{job=\"django-template-monolith\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"django-template-monolith\"}[5m])), 0.001)))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
       "type": "stat",
       "title": "Requests / sec",
       "gridPos": {
-        "x": 4,
-        "y": 0,
+        "x": 9,
+        "y": 1,
         "w": 5,
-        "h": 5
+        "h": 4
       },
       "datasource": {
         "type": "prometheus",
@@ -64,79 +165,162 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "reqps",
+          "decimals": 2
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "5xx %",
-      "gridPos": {
-        "x": 9,
-        "y": 0,
-        "w": 5,
-        "h": 5
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "100 * sum(rate(http_requests_total{job=\"django-template-monolith\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"django-template-monolith\"}[5m])), 0.001)"
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 4,
-      "type": "timeseries",
-      "title": "p95 / avg latency",
-      "gridPos": {
-        "x": 14,
-        "y": 0,
-        "w": 10,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"django-template-monolith\"}[5m])))",
-          "legendFormat": "p95 {{route}}"
-        },
-        {
-          "refId": "B",
-          "expr": "sum by (route) (rate(http_request_duration_seconds_sum{job=\"django-template-monolith\"}[5m])) / sum by (route) (rate(http_request_duration_seconds_count{job=\"django-template-monolith\"}[5m]))",
-          "legendFormat": "avg {{route}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": []
       }
     },
     {
       "id": 5,
-      "type": "timeseries",
-      "title": "Requests by route",
+      "type": "stat",
+      "title": "5xx %",
+      "gridPos": {
+        "x": 14,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * backend:http_5xx:ratio5m{job=\"django-template-monolith\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "p95 Latency",
+      "gridPos": {
+        "x": 19,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(backend:http_latency:p95_5m{job=\"django-template-monolith\"})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.25
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Golden Signals",
       "gridPos": {
         "x": 0,
         "y": 5,
-        "w": 14,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Traffic and Errors",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
         "h": 8
       },
       "datasource": {
@@ -146,24 +330,202 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, route, status) (rate(http_requests_total{job=\"django-template-monolith\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=\"django-template-monolith\"}[5m]))",
+          "legendFormat": "all requests / sec"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(http_requests_total{job=\"django-template-monolith\",status=~\"4..\"}[5m]))",
+          "legendFormat": "4xx / sec"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(http_requests_total{job=\"django-template-monolith\",status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx / sec"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Latency Percentiles",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(backend:http_latency:p50_5m{job=\"django-template-monolith\"})",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "max(backend:http_latency:p95_5m{job=\"django-template-monolith\"})",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "max(backend:http_latency:p99_5m{job=\"django-template-monolith\"})",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Route Breakdown",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Requests by Route and Status",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, route, status) (backend:http_requests:rate5m{job=\"django-template-monolith\"})",
           "legendFormat": "{{method}} {{route}} {{status}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "reqps",
+          "decimals": 2
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
-      "id": 6,
-      "type": "table",
-      "title": "Recent traces",
+      "id": 12,
+      "type": "timeseries",
+      "title": "p95 Latency by Route",
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "backend:http_latency:p95_5m{job=\"django-template-monolith\"}",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Drilldown",
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 23,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Recent Traces",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
         "w": 12,
         "h": 9
       },
@@ -174,18 +536,23 @@
       "targets": [
         {
           "refId": "A",
+          "query": "{ resource.service.name = \"django-template-monolith\" }",
           "queryType": "traceql",
-          "query": "{ resource.service.name = \"django-template-monolith\" }"
+          "limit": 20
         }
-      ]
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
     },
     {
-      "id": 7,
+      "id": 15,
       "type": "logs",
-      "title": "Recent logs",
+      "title": "Error Logs",
       "gridPos": {
         "x": 12,
-        "y": 13,
+        "y": 24,
         "w": 12,
         "h": 9
       },
@@ -196,9 +563,40 @@
       "targets": [
         {
           "refId": "A",
+          "expr": "{service_name=\"django-template-monolith\"} |~ \"(?i)(error|exception|traceback|status[^0-9]*5[0-9][0-9])\""
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 16,
+      "type": "logs",
+      "title": "Recent Logs",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
           "expr": "{service_name=\"django-template-monolith\"}"
         }
-      ]
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      }
     }
   ]
 }

@@ -37,3 +37,9 @@ datasources:
     type: loki
     access: proxy
     url: http://loki:3100
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: 'trace_id[=": ]+"?([a-f0-9]{32})'
+          name: TraceID
+          url: '$${__value.raw}'

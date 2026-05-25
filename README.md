@@ -2,8 +2,8 @@
 
 # Observability Template Stack
 
-**Local Grafana observability stack for backend templates with metrics, logs,
-traces, dashboards, alerts, and trace-to-log correlation**
+**Local Grafana observability stack for backend templates with practical
+metrics, logs, traces, dashboards, alerts, and trace-to-log correlation**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Grafana](https://img.shields.io/badge/Grafana-12.3-F46800?logo=grafana&logoColor=white)](https://grafana.com)
@@ -22,13 +22,13 @@ ecosystem
 
 | Category | Technologies |
 | --- | --- |
-| **Dashboards** | Grafana with provisioned datasources and per-backend dashboards |
+| **Dashboards** | Grafana with per-backend dashboards and stack health dashboard |
 | **Metrics** | Prometheus scraping app `/metrics` endpoints and stack health |
 | **Traces** | Tempo with TraceQL metrics support for Traces Drilldown |
 | **Logs** | Loki with Alloy Docker log discovery and service labels |
 | **Collection** | OpenTelemetry Collector as the shared OTLP gateway |
-| **Correlation** | Tempo trace-to-logs links using exact `trace_id` matches |
-| **Alerts** | Prometheus examples for target-down, 5xx rate, and p95 latency |
+| **Correlation** | Tempo trace-to-logs links and Loki trace-id derived fields |
+| **Alerts** | Prometheus examples for target-down, no traffic, 5xx rate, and p95 latency |
 | **DevOps** | Docker Compose stack on the shared `templates-observability` network |
 
 ---
@@ -85,6 +85,7 @@ local template practice only.
 | `make check` | Run Compose and dashboard JSON validation |
 | `make compose-check` | Validate the Docker Compose configuration |
 | `make dashboard-check` | Validate provisioned dashboard JSON files |
+| `make dashboard-generate` | Regenerate provisioned dashboard JSON files |
 
 ---
 
@@ -96,6 +97,12 @@ local template practice only.
 | AdonisJS | `http://localhost:3001/d/backend-adonis-template-monolith/adonisjs-template-observability` |
 | FastAPI | `http://localhost:3001/d/backend-fastapi-template-monolith/fastapi-template-observability` |
 | Django | `http://localhost:3001/d/backend-django-template-monolith/django-template-observability` |
+
+Stack health is available at:
+
+```text
+http://localhost:3001/d/observability-stack-health/observability-stack-health
+```
 
 Traces Drilldown is available at:
 
@@ -120,15 +127,23 @@ Known backend service names:
 | Logs | You need exact request events, exception text, or request context | Recent Logs panel or Loki Explore |
 | Traces | You need request timing, slow spans, DB/Redis/external-call cost, or causality | Recent Traces panel or Traces Drilldown |
 
+The fastest workflow is usually:
+
+1. Check the repo dashboard for health, traffic, errors, and latency.
+2. Use the route panels to identify the affected endpoint.
+3. Open a trace when the route is slow or confusing.
+4. Jump from the trace to logs when you need the exact request message or error.
+
 Request logs include `request_id`, `trace_id`, `span_id`, `method`, `path`,
 `status`, and `duration_ms`. Traces can jump to matching Loki logs through the
-Tempo trace-to-logs link.
+Tempo trace-to-logs link, and Loki can jump back to Tempo when a log line
+contains a `trace_id`.
 
 ---
 
 ## Dashboard Concepts
 
-### Scrape Health
+### Service Health
 
 `up{job="<service>"}` tells whether Prometheus can scrape the app's `/metrics`
 endpoint from inside the Docker network.
@@ -140,33 +155,55 @@ endpoint from inside the Docker network.
 Start here when a dashboard is empty. If `up` is `0`, route/error/latency panels
 will be stale or empty even if the app works from your browser.
 
-### Requests / Sec
+### Availability %
+
+Availability is calculated as non-5xx traffic over total traffic. It is not a
+formal SLO, but it gives the same quick read you want in production: "are users
+getting server errors right now?"
+
+Local traffic is tiny, so one failing request can move this number sharply. Use
+it as a debugging signal, not as a release gate.
+
+### Traffic and Errors
 
 `sum(rate(http_requests_total[5m]))` shows throughput. It answers whether the
 app is receiving traffic, whether a smoke test hit the service, and whether
 traffic stopped after a restart.
 
-### 5xx %
+The Traffic and Errors panel splits total requests, 4xx, and 5xx. A 4xx spike
+usually means bad input, auth, routing, or rate limiting. A 5xx spike means the
+server or one of its dependencies failed.
 
-This is server error percentage over recent requests. For local templates, any
-non-zero 5xx is worth inspecting because traffic volume is low and controlled.
-
-### p95 / Avg Latency
+### Latency Percentiles
 
 Latency panels use `http_request_duration_seconds`.
 
-- `avg` shows the normal request cost.
-- `p95` shows the slow tail and is better for occasional slow DB, Redis, or
-  external calls.
+- `p50` is the normal request.
+- `p95` is the slow tail most users will notice.
+- `p99` catches rare outliers that often hide DB, Redis, or external-call pain.
 
-If p95 rises but avg stays low, only some requests are slow. Open traces and
-look for the slow span. If both rise, the whole route or service is slower.
+If p95 rises but p50 stays low, only some requests are slow. Open traces and
+look for the slow span. If p50, p95, and p99 all rise together, the whole route
+or service is slower.
 
-### Requests By Route
+### Route Breakdown
 
-This breaks request rate down by `method`, `route`, and `status`. Use it to see
-which route is busy, which route is failing, and whether health checks or
-metrics scrapes dominate local traffic.
+Requests by route shows `method`, `route`, and `status`. Use it to see which
+route is busy, which route is failing, and whether health checks or metrics
+scrapes dominate local traffic.
+
+p95 latency by route answers the follow-up question: "which endpoint is slow?"
+Open a trace from the same time window to see where the time went.
+
+### Stack Health
+
+The stack dashboard watches the observability tools themselves. Use it when app
+dashboards look empty or stale:
+
+- Prometheus target health tells whether scraping works.
+- Scrape duration shows whether targets are slow to answer.
+- Collector span export rate confirms traces are leaving the collector.
+- Tempo and Loki request rates confirm the storage/query path is alive.
 
 ---
 
@@ -178,6 +215,25 @@ metrics scrapes dominate local traffic.
 | Request is slow | Inspect p95 latency, open a recent trace for the route, find the longest child span, then jump to logs if needed. |
 | Route is failing | Check 5xx % and Requests By Route, identify the route/status series, then filter logs or use trace-to-logs. |
 | Traces Drilldown errors | Check Tempo logs for `empty ring`, `localblocks`, or `metrics-generator`, then smoke-test TraceQL metrics. |
+| Logs do not link to traces | Confirm request logs include `trace_id`, then check the Loki datasource derived field named `TraceID`. |
+
+## Production-Like Configuration Notes
+
+This repo is still a local template stack, but it models the production habits
+that matter most:
+
+- Keep app instrumentation in the app repo and shared telemetry storage in this
+  repo.
+- Use stable service names through `OTEL_SERVICE_NAME`; dashboards, logs, and
+  traces depend on that label.
+- Prefer low-cardinality labels such as route templates, method, status, job,
+  and service. Do not add user IDs, emails, request bodies, or raw URLs as
+  metric labels.
+- Use metrics for trends, traces for causality, and logs for exact context.
+- Keep retention short locally. Production retention, auth, TLS, remote object
+  storage, alert routing, and access control are deployment-owned concerns.
+- Treat alert rules here as examples. The thresholds are intentionally small so
+  template regressions are visible during practice.
 
 TraceQL metrics smoke:
 

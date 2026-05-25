@@ -1,11 +1,10 @@
 {
-  "title": "AdonisJS Template Observability",
-  "uid": "backend-adonis-template-monolith",
+  "title": "Observability Stack Health",
+  "uid": "observability-stack-health",
   "tags": [
-    "backend",
-    "template",
-    "adonisjs",
-    "observability"
+    "observability",
+    "platform",
+    "stack"
   ],
   "timezone": "browser",
   "schemaVersion": 41,
@@ -21,7 +20,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "Service Health",
+      "title": "Stack Health",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -34,11 +33,11 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Scrape Health",
+      "title": "Healthy Targets",
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 4,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -48,7 +47,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=\"adonis-template-monolith\"}"
+          "expr": "sum(up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy\"})"
         }
       ],
       "fieldConfig": {
@@ -63,8 +62,12 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 5
+              },
+              {
                 "color": "green",
-                "value": 1
+                "value": 6
               }
             ]
           }
@@ -88,11 +91,11 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Availability %",
+      "title": "Prometheus Series",
       "gridPos": {
-        "x": 4,
+        "x": 6,
         "y": 1,
-        "w": 5,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -102,30 +105,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * (1 - (sum(rate(http_requests_total{job=\"adonis-template-monolith\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"adonis-template-monolith\"}[5m])), 0.001)))"
+          "expr": "prometheus_tsdb_head_series"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 99
-              }
-            ]
-          }
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -146,11 +132,11 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Requests / sec",
+      "title": "Loki Write Rate",
       "gridPos": {
-        "x": 9,
+        "x": 12,
         "y": 1,
-        "w": 5,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -160,7 +146,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_requests_total{job=\"adonis-template-monolith\"}[5m]))"
+          "expr": "sum(rate(loki_request_duration_seconds_count{route=~\".*push.*\"}[5m]))"
         }
       ],
       "fieldConfig": {
@@ -187,11 +173,11 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "5xx %",
+      "title": "Collector Exported Spans / sec",
       "gridPos": {
-        "x": 14,
+        "x": 18,
         "y": 1,
-        "w": 5,
+        "w": 6,
         "h": 4
       },
       "datasource": {
@@ -201,30 +187,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * backend:http_5xx:ratio5m{job=\"adonis-template-monolith\"}"
+          "expr": "sum(rate(otelcol_exporter_sent_spans[5m]))"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          }
+          "unit": "ops",
+          "decimals": 2
         },
         "overrides": []
       },
@@ -244,66 +213,8 @@
     },
     {
       "id": 6,
-      "type": "stat",
-      "title": "p95 Latency",
-      "gridPos": {
-        "x": 19,
-        "y": 1,
-        "w": 5,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max(backend:http_latency:p95_5m{job=\"adonis-template-monolith\"})"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 0.25
-              },
-              {
-                "color": "red",
-                "value": 0.5
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 7,
       "type": "row",
-      "title": "Golden Signals",
+      "title": "Targets and Scrapes",
       "gridPos": {
         "x": 0,
         "y": 5,
@@ -314,9 +225,9 @@
       "panels": []
     },
     {
-      "id": 8,
+      "id": 7,
       "type": "timeseries",
-      "title": "Traffic and Errors",
+      "title": "Target Health by Job",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -330,23 +241,53 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_requests_total{job=\"adonis-template-monolith\"}[5m]))",
-          "legendFormat": "all requests / sec"
-        },
-        {
-          "refId": "B",
-          "expr": "sum(rate(http_requests_total{job=\"adonis-template-monolith\",status=~\"4..\"}[5m]))",
-          "legendFormat": "4xx / sec"
-        },
-        {
-          "refId": "C",
-          "expr": "sum(rate(http_requests_total{job=\"adonis-template-monolith\",status=~\"5..\"}[5m]))",
-          "legendFormat": "5xx / sec"
+          "expr": "up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|.*-template-monolith\"}",
+          "legendFormat": "{{job}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Scrape Duration by Job",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "scrape_duration_seconds{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|.*-template-monolith\"}",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
           "decimals": 2
         },
         "overrides": []
@@ -365,12 +306,25 @@
     },
     {
       "id": 9,
-      "type": "timeseries",
-      "title": "Latency Percentiles",
+      "type": "row",
+      "title": "Signal Pipeline",
       "gridPos": {
-        "x": 12,
-        "y": 6,
-        "w": 12,
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Collector Span Export Rate",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 8,
         "h": 8
       },
       "datasource": {
@@ -380,23 +334,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max(backend:http_latency:p50_5m{job=\"adonis-template-monolith\"})",
-          "legendFormat": "p50"
-        },
-        {
-          "refId": "B",
-          "expr": "max(backend:http_latency:p95_5m{job=\"adonis-template-monolith\"})",
-          "legendFormat": "p95"
-        },
-        {
-          "refId": "C",
-          "expr": "max(backend:http_latency:p99_5m{job=\"adonis-template-monolith\"})",
-          "legendFormat": "p99"
+          "expr": "sum by (exporter) (rate(otelcol_exporter_sent_spans[5m]))",
+          "legendFormat": "{{exporter}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "ops",
           "decimals": 2
         },
         "overrides": []
@@ -414,26 +358,13 @@
       }
     },
     {
-      "id": 10,
-      "type": "row",
-      "title": "Route Breakdown",
-      "gridPos": {
-        "x": 0,
-        "y": 14,
-        "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
       "id": 11,
       "type": "timeseries",
-      "title": "Requests by Route and Status",
+      "title": "Tempo Request Rate",
       "gridPos": {
-        "x": 0,
+        "x": 8,
         "y": 15,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "datasource": {
@@ -443,8 +374,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, route, status) (backend:http_requests:rate5m{job=\"adonis-template-monolith\"})",
-          "legendFormat": "{{method}} {{route}} {{status}}"
+          "expr": "sum by (route) (rate(tempo_request_duration_seconds_count[5m]))",
+          "legendFormat": "{{route}}"
         }
       ],
       "fieldConfig": {
@@ -469,11 +400,11 @@
     {
       "id": 12,
       "type": "timeseries",
-      "title": "p95 Latency by Route",
+      "title": "Loki Request Rate",
       "gridPos": {
-        "x": 12,
+        "x": 16,
         "y": 15,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "datasource": {
@@ -483,13 +414,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "backend:http_latency:p95_5m{job=\"adonis-template-monolith\"}",
-          "legendFormat": "{{route}}"
+          "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count[5m]))",
+          "legendFormat": "{{route}} {{status_code}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "reqps",
           "decimals": 2
         },
         "overrides": []
@@ -508,52 +439,12 @@
     },
     {
       "id": 13,
-      "type": "row",
-      "title": "Drilldown",
+      "type": "logs",
+      "title": "Stack Logs",
       "gridPos": {
         "x": 0,
         "y": 23,
         "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "id": 14,
-      "type": "table",
-      "title": "Recent Traces",
-      "gridPos": {
-        "x": 0,
-        "y": 24,
-        "w": 12,
-        "h": 9
-      },
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "query": "{ resource.service.name = \"adonis-template-monolith\" }",
-          "queryType": "traceql",
-          "limit": 20
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm"
-      }
-    },
-    {
-      "id": 15,
-      "type": "logs",
-      "title": "Error Logs",
-      "gridPos": {
-        "x": 12,
-        "y": 24,
-        "w": 12,
         "h": 9
       },
       "datasource": {
@@ -563,33 +454,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service_name=\"adonis-template-monolith\"} |~ \"(?i)(error|exception|traceback|status[^0-9]*5[0-9][0-9])\""
-        }
-      ],
-      "options": {
-        "showLabels": true,
-        "showTime": true,
-        "wrapLogMessage": true
-      }
-    },
-    {
-      "id": 16,
-      "type": "logs",
-      "title": "Recent Logs",
-      "gridPos": {
-        "x": 0,
-        "y": 33,
-        "w": 24,
-        "h": 8
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{service_name=\"adonis-template-monolith\"}"
+          "expr": "{container=~\"templates_(grafana|prometheus|tempo|loki|alloy|otel_collector)\"}"
         }
       ],
       "options": {

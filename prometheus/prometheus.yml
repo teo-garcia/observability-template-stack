@@ -1,5 +1,9 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: observability-template-stack
+    environment: local
 
 rule_files:
   - /etc/prometheus/rules/*.yml
@@ -10,6 +14,8 @@ scrape_configs:
       - targets: ["otel-collector:8889"]
 
   - job_name: tempo
+    scrape_interval: 60s
+    scrape_timeout: 2s
     static_configs:
       - targets: ["tempo:3200"]
 
@@ -20,6 +26,10 @@ scrape_configs:
   - job_name: grafana
     static_configs:
       - targets: ["grafana:3000"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
 
   - job_name: alloy
     static_configs:
