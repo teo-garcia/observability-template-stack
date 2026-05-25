@@ -1,0 +1,78 @@
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/nest_monolith_app"
+    target_label  = "service_name"
+    replacement   = "nest-template-monolith"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/fastapi_monolith_app"
+    target_label  = "service_name"
+    replacement   = "fastapi-template-monolith"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/django_monolith_app"
+    target_label  = "service_name"
+    replacement   = "django-template-monolith"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/adonis_monolith_app"
+    target_label  = "service_name"
+    replacement   = "adonis-template-monolith"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
+  stage.docker {}
+
+  stage.labels {
+    values = {
+      container       = "container",
+      compose_service = "compose_service",
+      compose_project = "compose_project",
+      service_name    = "service_name",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

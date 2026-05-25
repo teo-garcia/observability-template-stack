@@ -1,0 +1,204 @@
+{
+  "uid": "backend-fastapi-template-monolith",
+  "title": "FastAPI Template Observability",
+  "tags": [
+    "backend",
+    "template",
+    "fastapi-template-monolith"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Scrape Health",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"fastapi-template-monolith\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Requests / sec",
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_requests_total{job=\"fastapi-template-monolith\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "5xx %",
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 5,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(rate(http_requests_total{job=\"fastapi-template-monolith\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"fastapi-template-monolith\"}[5m])), 0.001)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "p95 / avg latency",
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 10,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"fastapi-template-monolith\"}[5m])))",
+          "legendFormat": "p95 {{route}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (route) (rate(http_request_duration_seconds_sum{job=\"fastapi-template-monolith\"}[5m])) / sum by (route) (rate(http_request_duration_seconds_count{job=\"fastapi-template-monolith\"}[5m]))",
+          "legendFormat": "avg {{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Requests by route",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 14,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, route, status) (rate(http_requests_total{job=\"fastapi-template-monolith\"}[5m]))",
+          "legendFormat": "{{method}} {{route}} {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Recent traces",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"fastapi-template-monolith\" }"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Recent logs",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"fastapi-template-monolith\"}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+groups:
+  - name: backend-template-signals
+    rules:
+      - alert: BackendTargetDown
+        expr: up{job=~".*-template-monolith"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} metrics target is down"
+          description: "Prometheus cannot scrape {{ $labels.job }}. Check the app container and observability network."
+
+      - alert: BackendHighErrorRate
+        expr: |
+          sum by (job) (rate(http_requests_total{job=~".*-template-monolith",status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (job) (rate(http_requests_total{job=~".*-template-monolith"}[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} has elevated 5xx errors"
+          description: "More than 5% of requests returned 5xx for five minutes."
+
+      - alert: BackendHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (job, le) (rate(http_request_duration_seconds_bucket{job=~".*-template-monolith"}[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} p95 latency is high"
+          description: "p95 HTTP latency is above 500ms for five minutes."

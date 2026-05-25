@@ -1,0 +1,95 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.141.0
+    container_name: templates_otel_collector
+    command: ["--config=/etc/otelcol/config.yml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      - tempo
+      - loki
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: templates_prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=24h"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+    networks:
+      - observability
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    container_name: templates_tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/var/tempo
+    networks:
+      - observability
+
+  loki:
+    image: grafana/loki:3.6.3
+    container_name: templates_loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    networks:
+      - observability
+
+  alloy:
+    image: grafana/alloy:v1.11.0
+    container_name: templates_alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: templates_grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+      - alloy
+    networks:
+      - observability
+
+volumes:
+  tempo_data:
+
+networks:
+  observability:
+    name: templates-observability
+    external: true
