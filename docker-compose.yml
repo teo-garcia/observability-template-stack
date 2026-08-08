@@ -30,7 +30,7 @@ services:
       - observability
 
   tempo:
-    image: grafana/tempo:2.9.0
+    image: grafana/tempo:3.0.2
     container_name: templates_tempo
     command: ["-config.file=/etc/tempo.yml"]
     ports:
@@ -68,7 +68,7 @@ services:
       - observability
 
   grafana:
-    image: grafana/grafana:12.3.0
+    image: grafana/grafana:13.1.2
     container_name: templates_grafana
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
