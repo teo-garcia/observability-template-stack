@@ -4,6 +4,12 @@
   "dependencyDashboard": true,
   "labels": ["dependencies"],
   "platformAutomerge": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security"],
+    "automerge": true,
+    "automergeType": "pr"
+  },
   "packageRules": [
     {
       "groupName": "observability stack images",
