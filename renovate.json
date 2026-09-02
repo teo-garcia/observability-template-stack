@@ -1,22 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "dependencyDashboard": true,
-  "labels": ["dependencies"],
-  "platformAutomerge": true,
-  "vulnerabilityAlerts": {
-    "enabled": true,
-    "addLabels": ["security"],
-    "automerge": true,
-    "automergeType": "pr"
-  },
+  "extends": ["github>teo-garcia/templates//renovate/active"],
   "packageRules": [
     {
+      "description": "Review the observability image set together",
       "groupName": "observability stack images",
       "matchDatasources": ["docker"],
-      "schedule": ["on the first day of the month"],
-      "minimumReleaseAge": "3 days",
-      "automerge": false,
+      "dependencyDashboardApproval": true,
       "reviewers": ["teo-garcia"]
     }
   ]
