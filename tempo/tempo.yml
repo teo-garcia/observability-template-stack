@@ -1,3 +1,5 @@
+stream_over_http_enabled: true
+
 server:
   http_listen_port: 3200
 
@@ -10,29 +12,13 @@ distributor:
         http:
           endpoint: 0.0.0.0:4318
 
-metrics_generator:
-  storage:
-    path: /var/tempo/generator/metrics
-  ring:
-    kvstore:
-      store: inmemory
-  traces_storage:
-    path: /var/tempo/generator/wal
-  processor:
-    local_blocks:
-      filter_server_spans: false
-
 storage:
   trace:
     backend: local
+    wal:
+      path: /var/tempo/wal
     local:
-      path: /var/tempo/traces
+      path: /var/tempo/blocks
 
-compactor:
-  compaction:
-    block_retention: 24h
-
-overrides:
-  defaults:
-    metrics_generator:
-      processors: [local-blocks]
+usage_report:
+  reporting_enabled: false

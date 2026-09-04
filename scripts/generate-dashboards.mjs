@@ -36,6 +36,22 @@ const services = [
     slug: 'django-template-observability',
     runtime: 'python',
   },
+  {
+    name: 'Spring',
+    service: 'spring-template-monolith',
+    uid: 'backend-spring-template-monolith',
+    title: 'Spring Template Observability',
+    slug: 'spring-template-observability',
+    runtime: 'jvm',
+  },
+  {
+    name: 'Gin',
+    service: 'gin-template-monolith',
+    uid: 'backend-gin-template-monolith',
+    title: 'Gin Template Observability',
+    slug: 'gin-template-observability',
+    runtime: 'go',
+  },
 ]
 
 const prom = { type: 'prometheus', uid: 'prometheus' }
@@ -151,6 +167,127 @@ function row(title, y) {
   }
 }
 
+function runtimePanels(service) {
+  const s = service.service
+
+  if (service.runtime === 'node') {
+    return [
+      timeseries(
+        'CPU Usage',
+        0, 24, 12, 8,
+        [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
+        { unit: 'percentunit', decimals: 3 },
+      ),
+      timeseries(
+        'Heap Used',
+        12, 24, 12, 8,
+        [
+          target(`nodejs_heap_size_used_bytes{job="${s}"}`, 'A', 'heap used'),
+          target(`nodejs_heap_size_total_bytes{job="${s}"}`, 'B', 'heap total'),
+        ],
+        { unit: 'bytes', decimals: 1 },
+      ),
+      timeseries(
+        'Event Loop Lag',
+        0, 32, 12, 8,
+        [target(`nodejs_eventloop_lag_seconds{job="${s}"}`, 'A', 'event loop lag')],
+        { unit: 's', decimals: 3 },
+      ),
+      timeseries(
+        'GC Duration Rate',
+        12, 32, 12, 8,
+        [target(`rate(nodejs_gc_duration_seconds_sum{job="${s}"}[5m])`, 'A', '{{kind}}')],
+        { unit: 's', decimals: 3 },
+      ),
+    ]
+  }
+
+  if (service.runtime === 'python') {
+    return [
+      timeseries(
+        'CPU Usage',
+        0, 24, 12, 8,
+        [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
+        { unit: 'percentunit', decimals: 3 },
+      ),
+      timeseries(
+        'Process Memory (RSS)',
+        12, 24, 12, 8,
+        [target(`process_resident_memory_bytes{job="${s}"}`, 'A', 'RSS')],
+        { unit: 'bytes', decimals: 1 },
+      ),
+      timeseries(
+        'GC Collection Rate',
+        0, 32, 12, 8,
+        [target(`rate(python_gc_collections_total{job="${s}"}[5m])`, 'A', 'gen {{generation}}')],
+        { unit: 'ops', decimals: 2 },
+      ),
+      timeseries(
+        'Open File Descriptors',
+        12, 32, 12, 8,
+        [target(`process_open_fds{job="${s}"}`, 'A', 'open FDs')],
+        { unit: 'short', decimals: 0 },
+      ),
+    ]
+  }
+
+  if (service.runtime === 'jvm') {
+    return [
+      timeseries(
+        'CPU Usage',
+        0, 24, 12, 8,
+        [target(`process_cpu_usage{job="${s}"}`, 'A', 'process CPU')],
+        { unit: 'percentunit', decimals: 3 },
+      ),
+      timeseries(
+        'JVM Memory Used',
+        12, 24, 12, 8,
+        [target(`sum by (area) (jvm_memory_used_bytes{job="${s}"})`, 'A', '{{area}}')],
+        { unit: 'bytes', decimals: 1 },
+      ),
+      timeseries(
+        'GC Pause Rate',
+        0, 32, 12, 8,
+        [target(`rate(jvm_gc_pause_seconds_sum{job="${s}"}[5m])`, 'A', '{{action}} {{cause}}')],
+        { unit: 's', decimals: 3 },
+      ),
+      timeseries(
+        'Live Threads',
+        12, 32, 12, 8,
+        [target(`jvm_threads_live_threads{job="${s}"}`, 'A', 'live threads')],
+        { unit: 'short', decimals: 0 },
+      ),
+    ]
+  }
+
+  return [
+    timeseries(
+      'CPU Usage',
+      0, 24, 12, 8,
+      [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
+      { unit: 'percentunit', decimals: 3 },
+    ),
+    timeseries(
+      'Heap Allocated',
+      12, 24, 12, 8,
+      [target(`go_memstats_heap_alloc_bytes{job="${s}"}`, 'A', 'heap allocated')],
+      { unit: 'bytes', decimals: 1 },
+    ),
+    timeseries(
+      'GC Duration Rate',
+      0, 32, 12, 8,
+      [target(`rate(go_gc_duration_seconds_sum{job="${s}"}[5m])`, 'A', 'GC duration')],
+      { unit: 's', decimals: 3 },
+    ),
+    timeseries(
+      'Goroutines',
+      12, 32, 12, 8,
+      [target(`go_goroutines{job="${s}"}`, 'A', 'goroutines')],
+      { unit: 'short', decimals: 0 },
+    ),
+  ]
+}
+
 function baseDashboard({ title, uid, tags = [] }) {
   return {
     title,
@@ -259,62 +396,7 @@ function serviceDashboard(service) {
       { unit: 's' },
     ),
     row('Runtime Resources', 23),
-    ...(service.runtime === 'node'
-      ? [
-          timeseries(
-            'CPU Usage',
-            0, 24, 12, 8,
-            [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
-            { unit: 'percentunit', decimals: 3 },
-          ),
-          timeseries(
-            'Heap Used',
-            12, 24, 12, 8,
-            [
-              target(`nodejs_heap_size_used_bytes{job="${s}"}`, 'A', 'heap used'),
-              target(`nodejs_heap_size_total_bytes{job="${s}"}`, 'B', 'heap total'),
-            ],
-            { unit: 'bytes', decimals: 1 },
-          ),
-          timeseries(
-            'Event Loop Lag',
-            0, 32, 12, 8,
-            [target(`nodejs_eventloop_lag_seconds{job="${s}"}`, 'A', 'event loop lag')],
-            { unit: 's', decimals: 3 },
-          ),
-          timeseries(
-            'GC Duration Rate',
-            12, 32, 12, 8,
-            [target(`rate(nodejs_gc_duration_seconds_sum{job="${s}"}[5m])`, 'A', '{{kind}}')],
-            { unit: 's', decimals: 3 },
-          ),
-        ]
-      : [
-          timeseries(
-            'CPU Usage',
-            0, 24, 12, 8,
-            [target(`rate(process_cpu_seconds_total{job="${s}"}[5m])`, 'A', 'CPU rate')],
-            { unit: 'percentunit', decimals: 3 },
-          ),
-          timeseries(
-            'Process Memory (RSS)',
-            12, 24, 12, 8,
-            [target(`process_resident_memory_bytes{job="${s}"}`, 'A', 'RSS')],
-            { unit: 'bytes', decimals: 1 },
-          ),
-          timeseries(
-            'GC Collection Rate',
-            0, 32, 12, 8,
-            [target(`rate(python_gc_collections_total{job="${s}"}[5m])`, 'A', 'gen {{generation}}')],
-            { unit: 'ops', decimals: 2 },
-          ),
-          timeseries(
-            'Open File Descriptors',
-            12, 32, 12, 8,
-            [target(`process_open_fds{job="${s}"}`, 'A', 'open FDs')],
-            { unit: 'short', decimals: 0 },
-          ),
-        ]),
+    ...runtimePanels(service),
     row('Drilldown', 40),
     table('Recent Traces', 0, 41, 12, 9, tempo, [
       {
@@ -402,7 +484,7 @@ function stackDashboard() {
       [target('sum by (route, status_code) (rate(loki_request_duration_seconds_count[5m]))', 'A', '{{route}} {{status_code}}')],
       { unit: 'reqps' },
     ),
-    logs('Stack Logs', 0, 23, 24, 9, '{container=~"templates_(grafana|prometheus|tempo|loki|alloy|otel_collector)"}'),
+    logs('Stack Logs', 0, 23, 24, 9, '{compose_service=~"grafana|prometheus|tempo|loki|alloy|otel-collector"}'),
   )
 
   return dashboard

@@ -454,7 +454,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=~\"templates_(grafana|prometheus|tempo|loki|alloy|otel_collector)\"}"
+          "expr": "{compose_service=~\"grafana|prometheus|tempo|loki|alloy|otel-collector\"}"
         }
       ],
       "options": {

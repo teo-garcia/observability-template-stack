@@ -40,15 +40,15 @@ ecosystem
 - Shared Docker network named `templates-observability`
 - One of the active backend monolith templates:
   `nest-template-monolith`, `adonis-template-monolith`,
-  `fastapi-template-monolith`, or `django-template-monolith`
+  `fastapi-template-monolith`, `django-template-monolith`,
+  `spring-template-monolith`, or `gin-template-monolith`
 
 ---
 
 ## Quick Start
 
 ```bash
-docker network create templates-observability || true
-docker compose up -d
+make up
 ```
 
 Run an app template with its observability override, then send traffic:
@@ -60,8 +60,8 @@ curl http://localhost:8000/health/live
 curl http://localhost:8000/
 ```
 
-Grafana starts on `http://localhost:3001`. Anonymous admin access is enabled for
-local template practice only.
+Grafana starts on `http://localhost:3001`. Anonymous Viewer access is enabled
+for local template practice only.
 
 ---
 
@@ -82,10 +82,14 @@ local template practice only.
 
 | Command | Description |
 | --- | --- |
-| `make check` | Run Compose and dashboard JSON validation |
+| `make check` | Validate Compose, service configs, generated dashboards, and dashboard JSON |
 | `make compose-check` | Validate the Docker Compose configuration |
-| `make dashboard-check` | Validate provisioned dashboard JSON files |
+| `make config-check` | Validate Prometheus, Tempo, Loki, Collector, and Alloy configs with their pinned images |
+| `make dashboard-check` | Regenerate dashboards and fail on committed-output drift or invalid JSON |
 | `make dashboard-generate` | Regenerate provisioned dashboard JSON files |
+| `make up` | Create the shared network and start the stack |
+| `make down` | Stop the stack and remove its local volume |
+| `make smoke` | Boot an isolated stack, verify its runtime contracts, and clean it up |
 
 ---
 
@@ -97,6 +101,8 @@ local template practice only.
 | AdonisJS | `http://localhost:3001/d/backend-adonis-template-monolith/adonisjs-template-observability` |
 | FastAPI | `http://localhost:3001/d/backend-fastapi-template-monolith/fastapi-template-observability` |
 | Django | `http://localhost:3001/d/backend-django-template-monolith/django-template-observability` |
+| Spring Boot | `http://localhost:3001/d/backend-spring-template-monolith/spring-template-observability` |
+| Gin | `http://localhost:3001/d/backend-gin-template-monolith/gin-template-observability` |
 
 Stack health is available at:
 
@@ -116,6 +122,8 @@ Known backend service names:
 - `adonis-template-monolith`
 - `fastapi-template-monolith`
 - `django-template-monolith`
+- `spring-template-monolith`
+- `gin-template-monolith`
 
 ---
 
@@ -218,6 +226,24 @@ app's `/metrics` endpoint. No extra infrastructure is required.
 | GC Collection Rate | `rate(python_gc_collections_total[5m])` by generation | Gen-2 collections are expensive; a spike here often precedes latency increases |
 | Open File Descriptors | `process_open_fds` | A monotonically rising count without a traffic increase means file handles or connections are not being closed |
 
+**JVM backend (Spring Boot)**
+
+| Panel | Metric | What to look for |
+| --- | --- | --- |
+| CPU Usage | `process_cpu_usage` | Sustained values near 1.0 mean the process is compute-bound |
+| JVM Memory Used | `jvm_memory_used_bytes` by area | Heap usage that keeps rising after GC can indicate retained objects or an undersized heap |
+| GC Pause Rate | `rate(jvm_gc_pause_seconds_sum[5m])` | A rising pause rate signals allocation pressure and often tracks latency increases |
+| Live Threads | `jvm_threads_live_threads` | Persistent growth can indicate blocked work or a thread leak |
+
+**Go backend (Gin)**
+
+| Panel | Metric | What to look for |
+| --- | --- | --- |
+| CPU Usage | `rate(process_cpu_seconds_total[5m])` | Sustained values near 1.0 mean one core is saturated |
+| Heap Allocated | `go_memstats_heap_alloc_bytes` | A rising baseline after GC can indicate retained allocations |
+| GC Duration Rate | `rate(go_gc_duration_seconds_sum[5m])` | A rising rate alongside heap growth indicates allocation pressure |
+| Goroutines | `go_goroutines` | Persistent growth without matching load can indicate leaked goroutines |
+
 ### Stack Health
 
 The stack dashboard watches the observability tools themselves. Use it when app
@@ -276,6 +302,8 @@ curl -G http://localhost:3200/api/metrics/query_range \
 
 | Command | Description |
 | --- | --- |
+| `make check` | Validate committed configuration and generated dashboards |
+| `make smoke` | Boot the stack and verify readiness, provisioning, rules, and TraceQL metrics |
 | `docker compose config` | Validate Compose configuration |
 | `curl -fsS http://localhost:9090/-/ready` | Check Prometheus readiness |
 | `curl -fsS http://localhost:3200/ready` | Check Tempo readiness |
@@ -314,7 +342,7 @@ curl -G http://localhost:3100/loki/api/v1/query_range \
 | `grafana/provisioning/datasources/` | Provisioned Prometheus, Tempo, and Loki datasources |
 | `grafana/provisioning/dashboards/` | Provisioned per-backend Grafana dashboards |
 | `prometheus/` | Scrape config and backend alert examples |
-| `tempo/` | Tempo config with metrics generator and local blocks enabled |
+| `tempo/` | Tempo 3 local trace storage and TraceQL metrics configuration |
 | `otel-collector/` | OTLP receiver and Tempo exporter pipeline |
 | `alloy/` | Docker log discovery and Loki forwarding config |
 
@@ -341,6 +369,8 @@ curl -G http://localhost:3100/loki/api/v1/query_range \
 | `adonis-template-monolith` | AdonisJS backend with OpenTelemetry SDK wiring |
 | `fastapi-template-monolith` | FastAPI backend with OpenTelemetry SDK wiring |
 | `django-template-monolith` | Django backend with OpenTelemetry SDK wiring |
+| `spring-template-monolith` | Spring Boot backend with OpenTelemetry SDK wiring |
+| `gin-template-monolith` | Gin backend with OpenTelemetry SDK wiring |
 
 ---
 

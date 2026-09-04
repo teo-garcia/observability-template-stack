@@ -54,3 +54,13 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["adonis-template-monolith:3333"]
+
+  - job_name: spring-template-monolith
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["spring-template-monolith:3000"]
+
+  - job_name: gin-template-monolith
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gin-template-monolith:3000"]

@@ -48,6 +48,20 @@ discovery.relabel "containers" {
     target_label  = "service_name"
     replacement   = "adonis-template-monolith"
   }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/spring_monolith_app"
+    target_label  = "service_name"
+    replacement   = "spring-template-monolith"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/gin_monolith_app"
+    target_label  = "service_name"
+    replacement   = "gin-template-monolith"
+  }
 }
 
 loki.source.docker "containers" {

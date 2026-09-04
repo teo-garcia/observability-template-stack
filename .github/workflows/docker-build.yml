@@ -1,6 +1,10 @@
 name: Docker Build
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,15 +15,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  compose:
-    name: Validate Compose stack
+  smoke:
+    name: Smoke stack
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate Compose configuration
-        run: docker compose config
-
-      - name: Pull stack images
-        run: docker compose pull --quiet
+      - name: Boot and verify stack
+        run: make smoke
