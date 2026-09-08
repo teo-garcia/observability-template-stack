@@ -1,0 +1,8 @@
+# Deployment owners add reachable container metrics endpoints here. Keep public
+# ingress separate: /metrics belongs on the private observability network.
+#
+# - targets: ["nest-template-monolith:3000"]
+#   labels:
+#     service: nest-template-monolith
+#     profile: container-service
+[]

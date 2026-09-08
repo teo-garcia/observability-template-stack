@@ -39,6 +39,7 @@ groups:
         for: 1m
         labels:
           severity: warning
+          profile: container-service
         annotations:
           summary: "{{ $labels.job }} metrics target is down"
           description: "Prometheus cannot scrape {{ $labels.job }}. Check the app container and observability network."
@@ -48,6 +49,7 @@ groups:
         for: 10m
         labels:
           severity: info
+          profile: container-service
         annotations:
           summary: "{{ $labels.job }} has no observed traffic"
           description: "No HTTP requests have been observed for ten minutes. This is expected when the local template is idle."
@@ -57,6 +59,7 @@ groups:
         for: 5m
         labels:
           severity: warning
+          profile: container-service
         annotations:
           summary: "{{ $labels.job }} has elevated 5xx errors"
           description: "More than 5% of requests returned 5xx for five minutes."
@@ -66,6 +69,7 @@ groups:
         for: 5m
         labels:
           severity: warning
+          profile: container-service
         annotations:
           summary: "{{ $labels.job }} p95 latency is high"
           description: "p95 HTTP latency is above 500ms for five minutes."

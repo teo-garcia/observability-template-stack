@@ -423,12 +423,12 @@ function stackDashboard() {
 
   dashboard.panels.push(
     row('Stack Health', 0),
-    stat('Healthy Targets', 0, 1, 6, 4, 'sum(up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy"})', {
+    stat('Healthy Targets', 0, 1, 6, 4, 'sum(up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox"})', {
       decimals: 0,
       thresholds: [
         { color: 'red', value: null },
-        { color: 'orange', value: 5 },
-        { color: 'green', value: 6 },
+        { color: 'orange', value: 6 },
+        { color: 'green', value: 8 },
       ],
     }),
     stat('Prometheus Series', 6, 1, 6, 4, 'prometheus_tsdb_head_series', { decimals: 0 }),
@@ -445,7 +445,7 @@ function stackDashboard() {
       6,
       12,
       8,
-      [target('up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|.*-template-monolith"}', 'A', '{{job}}')],
+      [target('up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)"}', 'A', '{{job}}')],
     ),
     timeseries(
       'Scrape Duration by Job',
@@ -453,7 +453,7 @@ function stackDashboard() {
       6,
       12,
       8,
-      [target('scrape_duration_seconds{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|.*-template-monolith"}', 'A', '{{job}}')],
+      [target('scrape_duration_seconds{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)"}', 'A', '{{job}}')],
       { unit: 's' },
     ),
     row('Signal Pipeline', 14),
@@ -490,6 +490,162 @@ function stackDashboard() {
   return dashboard
 }
 
+function reliabilityDashboard() {
+  panelId = 1
+  const dashboard = baseDashboard({
+    title: 'Production Reliability and Error Budgets',
+    uid: 'production-reliability',
+    tags: ['observability', 'production', 'slo', 'error-budget'],
+  })
+
+  dashboard.time = { from: 'now-6h', to: 'now' }
+  dashboard.panels.push(
+    row('Current Reliability', 0),
+    stat('Firing Critical Alerts', 0, 1, 6, 4, 'count(ALERTS{alertstate="firing",severity="critical"})', {
+      decimals: 0,
+      thresholds: [
+        { color: 'green', value: null },
+        { color: 'red', value: 1 },
+      ],
+    }),
+    stat('Container Availability (30d)', 6, 1, 6, 4, 'min(container:slo_availability:ratio30d) * 100', {
+      unit: 'percent',
+      thresholds: [
+        { color: 'red', value: null },
+        { color: 'green', value: 99.5 },
+      ],
+    }),
+    stat('Static Availability (30d)', 12, 1, 6, 4, 'min(static:slo_availability:ratio30d) * 100', {
+      unit: 'percent',
+      thresholds: [
+        { color: 'red', value: null },
+        { color: 'green', value: 99.9 },
+      ],
+    }),
+    stat('Unhealthy Stack Targets', 18, 1, 6, 4, 'sum(1 - up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox"})', {
+      decimals: 0,
+      thresholds: [
+        { color: 'green', value: null },
+        { color: 'red', value: 1 },
+      ],
+    }),
+    row('Container SLO Burn', 5),
+    timeseries(
+      'Availability Error-Budget Burn Rate',
+      0,
+      6,
+      12,
+      8,
+      [
+        target('container:slo_availability_errors:ratio5m / 0.005', 'A', '{{job}} 5m'),
+        target('container:slo_availability_errors:ratio1h / 0.005', 'B', '{{job}} 1h'),
+      ],
+      { unit: 'short' },
+    ),
+    timeseries(
+      'Latency Error-Budget Burn Rate',
+      12,
+      6,
+      12,
+      8,
+      [
+        target('container:slo_latency_errors:ratio5m / 0.005', 'A', '{{job}} 5m'),
+        target('container:slo_latency_errors:ratio1h / 0.005', 'B', '{{job}} 1h'),
+      ],
+      { unit: 'short' },
+    ),
+    row('Static SLO Burn', 14),
+    timeseries(
+      'Probe Availability Error-Budget Burn Rate',
+      0,
+      15,
+      12,
+      8,
+      [
+        target('static:slo_availability_errors:ratio5m / 0.001', 'A', '{{service}} 5m'),
+        target('static:slo_availability_errors:ratio1h / 0.001', 'B', '{{service}} 1h'),
+      ],
+      { unit: 'short' },
+    ),
+    timeseries(
+      'Probe Latency Error-Budget Burn Rate',
+      12,
+      15,
+      12,
+      8,
+      [
+        target('static:slo_latency_errors:ratio5m / 0.01', 'A', '{{service}} 5m'),
+        target('static:slo_latency_errors:ratio1h / 0.01', 'B', '{{service}} 1h'),
+      ],
+      { unit: 'short' },
+    ),
+  )
+
+  return dashboard
+}
+
+function staticDeliveryDashboard() {
+  panelId = 1
+  const dashboard = baseDashboard({
+    title: 'Static Web Delivery',
+    uid: 'static-web-delivery',
+    tags: ['observability', 'production', 'static-web', 'delivery'],
+  })
+
+  dashboard.panels.push(
+    row('Availability and TLS', 0),
+    stat('Healthy Releases', 0, 1, 6, 4, 'sum(probe_success{job="static-web"})', { decimals: 0 }),
+    stat('Slowest Probe', 6, 1, 6, 4, 'max(probe_duration_seconds{job="static-web"})', {
+      unit: 's',
+      thresholds: [
+        { color: 'green', value: null },
+        { color: 'orange', value: 0.5 },
+        { color: 'red', value: 1 },
+      ],
+    }),
+    stat('Lowest HTTP Status', 12, 1, 6, 4, 'min(probe_http_status_code{job="static-web"})', { decimals: 0 }),
+    stat('Nearest Certificate Expiry', 18, 1, 6, 4, 'min((probe_ssl_earliest_cert_expiry{job="static-web"} - time()) / 86400)', {
+      unit: 'd',
+      decimals: 1,
+      thresholds: [
+        { color: 'red', value: null },
+        { color: 'orange', value: 14 },
+        { color: 'green', value: 30 },
+      ],
+    }),
+    row('Delivery Detail', 5),
+    timeseries(
+      'Probe Success',
+      0,
+      6,
+      12,
+      8,
+      [target('probe_success{job="static-web"}', 'A', '{{service}}')],
+      { unit: 'percentunit', decimals: 0 },
+    ),
+    timeseries(
+      'End-to-End Duration',
+      12,
+      6,
+      12,
+      8,
+      [target('probe_duration_seconds{job="static-web"}', 'A', '{{service}}')],
+      { unit: 's' },
+    ),
+    timeseries(
+      'Request Phase Duration',
+      0,
+      14,
+      24,
+      8,
+      [target('probe_http_duration_seconds{job="static-web"}', 'A', '{{service}} {{phase}}')],
+      { unit: 's' },
+    ),
+  )
+
+  return dashboard
+}
+
 mkdirSync(dashboardDir, { recursive: true })
 
 for (const service of services) {
@@ -497,3 +653,5 @@ for (const service of services) {
 }
 
 writeFileSync(join(dashboardDir, 'observability-stack-health.json'), `${JSON.stringify(stackDashboard(), null, 2)}\n`)
+writeFileSync(join(dashboardDir, 'production-reliability.json'), `${JSON.stringify(reliabilityDashboard(), null, 2)}\n`)
+writeFileSync(join(dashboardDir, 'static-web-delivery.json'), `${JSON.stringify(staticDeliveryDashboard(), null, 2)}\n`)

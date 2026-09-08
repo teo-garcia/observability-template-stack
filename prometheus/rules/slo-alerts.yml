@@ -1,0 +1,175 @@
+groups:
+  - name: production-slo-recording-rules
+    interval: 15s
+    rules:
+      # Container-service objectives: 99.5% successful responses and 99.5% of
+      # responses at or below 500 ms over a rolling 30-day window.
+      - record: container:slo_availability_errors:ratio5m
+        expr: |
+          sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)" ,status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)"}[5m])), 0.001)
+
+      - record: container:slo_availability_errors:ratio30m
+        expr: |
+          sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)" ,status=~"5.."}[30m]))
+          /
+          clamp_min(sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)"}[30m])), 0.001)
+
+      - record: container:slo_availability_errors:ratio1h
+        expr: |
+          sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)" ,status=~"5.."}[1h]))
+          /
+          clamp_min(sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)"}[1h])), 0.001)
+
+      - record: container:slo_availability_errors:ratio6h
+        expr: |
+          sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)" ,status=~"5.."}[6h]))
+          /
+          clamp_min(sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)"}[6h])), 0.001)
+
+      - record: container:slo_availability:ratio30d
+        expr: |
+          1 - (
+            sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)" ,status=~"5.."}[30d]))
+            /
+            clamp_min(sum by (job, profile) (rate(http_requests_total{job=~".*-template-(monolith|fullstack)"}[30d])), 0.001)
+          )
+
+      - record: container:slo_latency_errors:ratio5m
+        expr: |
+          1 - (
+            sum by (job, profile) (rate(http_request_duration_seconds_bucket{job=~".*-template-(monolith|fullstack)",le="0.5"}[5m]))
+            /
+            clamp_min(sum by (job, profile) (rate(http_request_duration_seconds_count{job=~".*-template-(monolith|fullstack)"}[5m])), 0.001)
+          )
+
+      - record: container:slo_latency_errors:ratio1h
+        expr: |
+          1 - (
+            sum by (job, profile) (rate(http_request_duration_seconds_bucket{job=~".*-template-(monolith|fullstack)",le="0.5"}[1h]))
+            /
+            clamp_min(sum by (job, profile) (rate(http_request_duration_seconds_count{job=~".*-template-(monolith|fullstack)"}[1h])), 0.001)
+          )
+
+      # Static-web objectives: 99.9% successful probes and 99% completing at
+      # or below one second over a rolling 30-day window.
+      - record: static:slo_availability_errors:ratio5m
+        expr: 1 - avg by (service, instance, profile) (avg_over_time(probe_success{job="static-web"}[5m]))
+
+      - record: static:slo_availability_errors:ratio30m
+        expr: 1 - avg by (service, instance, profile) (avg_over_time(probe_success{job="static-web"}[30m]))
+
+      - record: static:slo_availability_errors:ratio1h
+        expr: 1 - avg by (service, instance, profile) (avg_over_time(probe_success{job="static-web"}[1h]))
+
+      - record: static:slo_availability_errors:ratio6h
+        expr: 1 - avg by (service, instance, profile) (avg_over_time(probe_success{job="static-web"}[6h]))
+
+      - record: static:slo_availability:ratio30d
+        expr: avg by (service, instance, profile) (avg_over_time(probe_success{job="static-web"}[30d]))
+
+      - record: static:slo_latency_errors:ratio5m
+        expr: avg by (service, instance, profile) (avg_over_time((probe_duration_seconds{job="static-web"} > bool 1)[5m:15s]))
+
+      - record: static:slo_latency_errors:ratio1h
+        expr: avg by (service, instance, profile) (avg_over_time((probe_duration_seconds{job="static-web"} > bool 1)[1h:15s]))
+
+  - name: production-slo-alerts
+    rules:
+      - alert: ContainerAvailabilityBudgetFastBurn
+        expr: |
+          (container:slo_availability_errors:ratio5m > (14.4 * 0.005))
+          and on (job, profile)
+          (container:slo_availability_errors:ratio1h > (14.4 * 0.005))
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "{{ $labels.job }} is rapidly consuming its availability budget"
+          description: "The 99.5% availability SLO is burning at more than 14.4x across the 5m and 1h windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+      - alert: ContainerAvailabilityBudgetSlowBurn
+        expr: |
+          (container:slo_availability_errors:ratio30m > (6 * 0.005))
+          and on (job, profile)
+          (container:slo_availability_errors:ratio6h > (6 * 0.005))
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "{{ $labels.job }} is steadily consuming its availability budget"
+          description: "The 99.5% availability SLO is burning at more than 6x across the 30m and 6h windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+      - alert: ContainerLatencyBudgetFastBurn
+        expr: |
+          (container:slo_latency_errors:ratio5m > (14.4 * 0.005))
+          and on (job, profile)
+          (container:slo_latency_errors:ratio1h > (14.4 * 0.005))
+        for: 2m
+        labels:
+          severity: critical
+          slo: latency
+        annotations:
+          summary: "{{ $labels.job }} is rapidly consuming its latency budget"
+          description: "Fewer than 99.5% of requests are completing within 500ms across the fast-burn windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+      - alert: StaticAvailabilityBudgetFastBurn
+        expr: |
+          (static:slo_availability_errors:ratio5m > (14.4 * 0.001))
+          and on (service, instance, profile)
+          (static:slo_availability_errors:ratio1h > (14.4 * 0.001))
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "{{ $labels.service }} is rapidly consuming its probe availability budget"
+          description: "The 99.9% static availability SLO is burning at more than 14.4x across the 5m and 1h windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+      - alert: StaticAvailabilityBudgetSlowBurn
+        expr: |
+          (static:slo_availability_errors:ratio30m > (6 * 0.001))
+          and on (service, instance, profile)
+          (static:slo_availability_errors:ratio6h > (6 * 0.001))
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "{{ $labels.service }} is steadily consuming its probe availability budget"
+          description: "The 99.9% static availability SLO is burning at more than 6x across the 30m and 6h windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+      - alert: StaticLatencyBudgetFastBurn
+        expr: |
+          (static:slo_latency_errors:ratio5m > (14.4 * 0.01))
+          and on (service, instance, profile)
+          (static:slo_latency_errors:ratio1h > (14.4 * 0.01))
+        for: 2m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "{{ $labels.service }} is rapidly consuming its probe latency budget"
+          description: "Fewer than 99% of probes are completing within one second across the fast-burn windows."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#slo-response"
+
+  - name: production-platform-alerts
+    rules:
+      - alert: ObservabilityComponentDown
+        expr: up{job=~"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          profile: observability-platform
+        annotations:
+          summary: "Observability component {{ $labels.job }} is down"
+          description: "Prometheus has failed to scrape {{ $labels.job }} for at least 30 seconds."
+          runbook_url: "https://github.com/teo-garcia/observability-template-stack/blob/main/docs/production-operations.md#observability-stack-failure"

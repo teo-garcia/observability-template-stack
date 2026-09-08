@@ -1,0 +1,24 @@
+global:
+  resolve_timeout: 2m
+
+route:
+  receiver: local-noop
+  group_by: [alertname, profile, service, job]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: local-noop
+      matchers:
+        - severity="info"
+      repeat_interval: 24h
+
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: [alertname, profile, service, job]
+
+receivers:
+  - name: local-noop

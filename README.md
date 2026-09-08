@@ -2,11 +2,11 @@
 
 # Observability Template Stack
 
-**Local Grafana observability stack for backend templates with practical
-metrics, logs, traces, dashboards, alerts, and trace-to-log correlation**
+**Open-source observability for template applications, from a local learning
+stack to a bounded single-node operations profile**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Grafana](https://img.shields.io/badge/Grafana-12.3-F46800?logo=grafana&logoColor=white)](https://grafana.com)
+[![Grafana](https://img.shields.io/badge/Grafana-13.1-F46800?logo=grafana&logoColor=white)](https://grafana.com)
 [![Prometheus](https://img.shields.io/badge/Prometheus-3.7-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Collector-000000?logo=opentelemetry&logoColor=white)](https://opentelemetry.io)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
@@ -28,8 +28,9 @@ ecosystem
 | **Logs** | Loki with Alloy Docker log discovery and service labels |
 | **Collection** | OpenTelemetry Collector as the shared OTLP gateway |
 | **Correlation** | Tempo trace-to-logs links and Loki trace-id derived fields |
-| **Alerts** | Prometheus examples for target-down, no traffic, 5xx rate, and p95 latency |
-| **DevOps** | Docker Compose stack on the shared `templates-observability` network |
+| **Alerts and SLOs** | Prometheus multi-window burn alerts with Alertmanager-compatible routing |
+| **Static delivery** | Blackbox probes for availability, latency, TLS, and certificate expiry |
+| **Operations** | Separate durable, private, sampled, resource-bounded Compose profile |
 
 ---
 
@@ -63,6 +64,19 @@ curl http://localhost:8000/
 Grafana starts on `http://localhost:3001`. Anonymous Viewer access is enabled
 for local template practice only.
 
+For the compact operations profile, set a Grafana password and start the
+separate production Compose file:
+
+```bash
+export GRAFANA_ADMIN_PASSWORD='replace-with-a-secret'
+make production-up
+```
+
+This profile binds its UIs to loopback, preserves data in named volumes, routes
+alerts through Alertmanager, probes static releases with Blackbox, and applies
+documented retention, sampling, cardinality, CPU, and memory limits. Read the
+[production operations runbook](docs/production-operations.md) before using it.
+
 ---
 
 ## Services
@@ -90,6 +104,11 @@ for local template practice only.
 | `make up` | Create the shared network and start the stack |
 | `make down` | Stop the stack and remove its local volume |
 | `make smoke` | Boot an isolated stack, verify its runtime contracts, and clean it up |
+| `make production-check` | Validate the production Compose and every production service config |
+| `make production-up` | Start the password-protected, durable operations profile |
+| `make production-down` | Stop the operations profile without deleting its data |
+| `make production-destroy` | Stop the operations profile and explicitly delete its named volumes |
+| `make failure-drill` | Prove outage detection, Alertmanager routing, recovery, and resolution |
 
 ---
 
@@ -108,6 +127,13 @@ Stack health is available at:
 
 ```text
 http://localhost:3001/d/observability-stack-health/observability-stack-health
+```
+
+Production reliability and static delivery are available at:
+
+```text
+http://localhost:3001/d/production-reliability/production-reliability-and-error-budgets
+http://localhost:3001/d/static-web-delivery/static-web-delivery
 ```
 
 Traces Drilldown is available at:
@@ -266,10 +292,9 @@ dashboards look empty or stale:
 | Traces Drilldown errors | Check Tempo logs for `empty ring`, `localblocks`, or `metrics-generator`, then smoke-test TraceQL metrics. |
 | Logs do not link to traces | Confirm request logs include `trace_id`, then check the Loki datasource derived field named `TraceID`. |
 
-## Production-Like Configuration Notes
+## Operations Profiles
 
-This repo is still a local template stack, but it models the production habits
-that matter most:
+The local profile models the signal workflow with low friction:
 
 - Keep app instrumentation in the app repo and shared telemetry storage in this
   repo.
@@ -279,10 +304,15 @@ that matter most:
   and service. Do not add user IDs, emails, request bodies, or raw URLs as
   metric labels.
 - Use metrics for trends, traces for causality, and logs for exact context.
-- Keep retention short locally. Production retention, auth, TLS, remote object
-  storage, alert routing, and access control are deployment-owned concerns.
 - Treat alert rules here as examples. The thresholds are intentionally small so
   template regressions are visible during practice.
+
+The separate operations profile makes durability, access, retention, trace
+sampling, cardinality, resources, SLOs, and alert routing executable. It is a
+compact single-node path, not high availability. TLS ingress, real notification
+receivers, backups, public target URLs, CDN access logs, and live cost review
+remain deployment-owned. The exact boundaries and runbook are documented in
+[`docs/production-operations.md`](docs/production-operations.md).
 
 TraceQL metrics smoke:
 
@@ -339,9 +369,13 @@ curl -G http://localhost:3100/loki/api/v1/query_range \
 | Path | Purpose |
 | --- | --- |
 | `docker-compose.yml` | Local Grafana, Prometheus, Tempo, Loki, Alloy, and OTel Collector stack |
+| `docker-compose.production.yml` | Durable, private, resource-bounded operations profile |
 | `grafana/provisioning/datasources/` | Provisioned Prometheus, Tempo, and Loki datasources |
 | `grafana/provisioning/dashboards/` | Provisioned per-backend Grafana dashboards |
-| `prometheus/` | Scrape config and backend alert examples |
+| `prometheus/` | Local/production scrape configs, target enrollment, SLOs, and alerts |
+| `alertmanager/` | Default local routing policy; deployments inject a real receiver |
+| `blackbox/` | HTTP/TLS probe modules for static distributions |
+| `loki/` | Explicit production log retention and ingestion limits |
 | `tempo/` | Tempo 3 local trace storage and TraceQL metrics configuration |
 | `otel-collector/` | OTLP receiver and Tempo exporter pipeline |
 | `alloy/` | Docker log discovery and Loki forwarding config |
@@ -357,6 +391,8 @@ curl -G http://localhost:3100/loki/api/v1/query_range \
 | Local logs | Alloy Docker discovery plus Loki |
 | Dashboards | Grafana file provisioning at the root folder |
 | Alerts | Prometheus rule examples for common backend symptoms |
+| Production alert routing | Alertmanager with bounded grouping and inhibition |
+| Static delivery | Blackbox HTTP/TLS probes and a generated delivery dashboard |
 | Network | Shared `templates-observability` Docker network |
 
 ---

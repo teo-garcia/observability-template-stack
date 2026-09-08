@@ -53,7 +53,7 @@ wait_for "OTel Collector" http://localhost:8889/metrics
 
 echo "checking Grafana dashboards"
 curl -fsS http://localhost:3001/api/search |
-  jq -e 'map(select(.type == "dash-db")) | length == 7' >/dev/null
+  jq -e 'map(select(.type == "dash-db")) | length == 9' >/dev/null
 echo "checking Grafana datasources"
 curl -fsS http://localhost:3001/api/datasources |
   jq -e 'map(.uid) | sort == ["loki", "prometheus", "tempo"]' >/dev/null

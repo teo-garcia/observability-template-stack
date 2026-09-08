@@ -1,10 +1,11 @@
 {
-  "title": "Observability Stack Health",
-  "uid": "observability-stack-health",
+  "title": "Static Web Delivery",
+  "uid": "static-web-delivery",
   "tags": [
     "observability",
-    "platform",
-    "stack"
+    "production",
+    "static-web",
+    "delivery"
   ],
   "timezone": "browser",
   "schemaVersion": 41,
@@ -20,7 +21,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "Stack Health",
+      "title": "Availability and TLS",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -33,7 +34,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Healthy Targets",
+      "title": "Healthy Releases",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -47,65 +48,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox\"})"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 6
-              },
-              {
-                "color": "green",
-                "value": 8
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "Prometheus Series",
-      "gridPos": {
-        "x": 6,
-        "y": 1,
-        "w": 6,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "prometheus_tsdb_head_series"
+          "expr": "sum(probe_success{job=\"static-web\"})"
         }
       ],
       "fieldConfig": {
@@ -130,9 +73,67 @@
       }
     },
     {
+      "id": 3,
+      "type": "stat",
+      "title": "Slowest Probe",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(probe_duration_seconds{job=\"static-web\"})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
       "id": 4,
       "type": "stat",
-      "title": "Loki Write Rate",
+      "title": "Lowest HTTP Status",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -146,13 +147,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(loki_request_duration_seconds_count{route=~\".*push.*\"}[5m]))"
+          "expr": "min(probe_http_status_code{job=\"static-web\"})"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
-          "decimals": 2
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -173,7 +174,7 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Collector Exported Spans / sec",
+      "title": "Nearest Certificate Expiry",
       "gridPos": {
         "x": 18,
         "y": 1,
@@ -187,13 +188,30 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(otelcol_exporter_sent_spans[5m]))"
+          "expr": "min((probe_ssl_earliest_cert_expiry{job=\"static-web\"} - time()) / 86400)"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
-          "decimals": 2
+          "unit": "d",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 14
+              },
+              {
+                "color": "green",
+                "value": 30
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -214,7 +232,7 @@
     {
       "id": 6,
       "type": "row",
-      "title": "Targets and Scrapes",
+      "title": "Delivery Detail",
       "gridPos": {
         "x": 0,
         "y": 5,
@@ -227,7 +245,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Target Health by Job",
+      "title": "Probe Success",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -241,14 +259,14 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)\"}",
-          "legendFormat": "{{job}}"
+          "expr": "probe_success{job=\"static-web\"}",
+          "legendFormat": "{{service}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 2
+          "unit": "percentunit",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -267,7 +285,7 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Scrape Duration by Job",
+      "title": "End-to-End Duration",
       "gridPos": {
         "x": 12,
         "y": 6,
@@ -281,8 +299,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "scrape_duration_seconds{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)\"}",
-          "legendFormat": "{{job}}"
+          "expr": "probe_duration_seconds{job=\"static-web\"}",
+          "legendFormat": "{{service}}"
         }
       ],
       "fieldConfig": {
@@ -306,25 +324,12 @@
     },
     {
       "id": 9,
-      "type": "row",
-      "title": "Signal Pipeline",
+      "type": "timeseries",
+      "title": "Request Phase Duration",
       "gridPos": {
         "x": 0,
         "y": 14,
         "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "Collector Span Export Rate",
-      "gridPos": {
-        "x": 0,
-        "y": 15,
-        "w": 8,
         "h": 8
       },
       "datasource": {
@@ -334,13 +339,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (exporter) (rate(otelcol_exporter_sent_spans[5m]))",
-          "legendFormat": "{{exporter}}"
+          "expr": "probe_http_duration_seconds{job=\"static-web\"}",
+          "legendFormat": "{{service}} {{phase}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "unit": "s",
           "decimals": 2
         },
         "overrides": []
@@ -355,112 +360,6 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Tempo Request Rate",
-      "gridPos": {
-        "x": 8,
-        "y": 15,
-        "w": 8,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (route) (rate(tempo_request_duration_seconds_count[5m]))",
-          "legendFormat": "{{route}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Loki Request Rate",
-      "gridPos": {
-        "x": 16,
-        "y": 15,
-        "w": 8,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count[5m]))",
-          "legendFormat": "{{route}} {{status_code}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 13,
-      "type": "logs",
-      "title": "Stack Logs",
-      "gridPos": {
-        "x": 0,
-        "y": 23,
-        "w": 24,
-        "h": 9
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{compose_service=~\"grafana|prometheus|tempo|loki|alloy|otel-collector\"}"
-        }
-      ],
-      "options": {
-        "showLabels": true,
-        "showTime": true,
-        "wrapLogMessage": true
       }
     }
   ]

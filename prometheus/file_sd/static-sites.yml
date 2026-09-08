@@ -1,0 +1,10 @@
+# Deployment owners add the public URL that represents each static release.
+# Use module="http_2xx_tls" for public HTTPS and module="http_2xx" only for a
+# private/local fixture.
+#
+# - targets: ["https://example.com/"]
+#   labels:
+#     service: astro-template-fullstack
+#     profile: static-web
+#     module: http_2xx_tls
+[]

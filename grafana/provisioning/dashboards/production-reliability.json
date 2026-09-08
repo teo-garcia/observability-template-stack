@@ -1,17 +1,18 @@
 {
-  "title": "Observability Stack Health",
-  "uid": "observability-stack-health",
+  "title": "Production Reliability and Error Budgets",
+  "uid": "production-reliability",
   "tags": [
     "observability",
-    "platform",
-    "stack"
+    "production",
+    "slo",
+    "error-budget"
   ],
   "timezone": "browser",
   "schemaVersion": 41,
   "version": 1,
   "refresh": "10s",
   "time": {
-    "from": "now-30m",
+    "from": "now-6h",
     "to": "now"
   },
   "editable": true,
@@ -20,7 +21,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "Stack Health",
+      "title": "Current Reliability",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -33,7 +34,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Healthy Targets",
+      "title": "Firing Critical Alerts",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -47,7 +48,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox\"})"
+          "expr": "count(ALERTS{alertstate=\"firing\",severity=\"critical\"})"
         }
       ],
       "fieldConfig": {
@@ -58,16 +59,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 6
-              },
-              {
-                "color": "green",
-                "value": 8
+                "color": "red",
+                "value": 1
               }
             ]
           }
@@ -91,7 +88,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Prometheus Series",
+      "title": "Container Availability (30d)",
       "gridPos": {
         "x": 6,
         "y": 1,
@@ -105,13 +102,26 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "prometheus_tsdb_head_series"
+          "expr": "min(container:slo_availability:ratio30d) * 100"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 0
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 99.5
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -132,7 +142,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Loki Write Rate",
+      "title": "Static Availability (30d)",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -146,13 +156,26 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(loki_request_duration_seconds_count{route=~\".*push.*\"}[5m]))"
+          "expr": "min(static:slo_availability:ratio30d) * 100"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
-          "decimals": 2
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -173,7 +196,7 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Collector Exported Spans / sec",
+      "title": "Unhealthy Stack Targets",
       "gridPos": {
         "x": 18,
         "y": 1,
@@ -187,13 +210,26 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(otelcol_exporter_sent_spans[5m]))"
+          "expr": "sum(1 - up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox\"})"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
-          "decimals": 2
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -214,7 +250,7 @@
     {
       "id": 6,
       "type": "row",
-      "title": "Targets and Scrapes",
+      "title": "Container SLO Burn",
       "gridPos": {
         "x": 0,
         "y": 5,
@@ -227,7 +263,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Target Health by Job",
+      "title": "Availability Error-Budget Burn Rate",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -241,8 +277,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)\"}",
-          "legendFormat": "{{job}}"
+          "expr": "container:slo_availability_errors:ratio5m / 0.005",
+          "legendFormat": "{{job}} 5m"
+        },
+        {
+          "refId": "B",
+          "expr": "container:slo_availability_errors:ratio1h / 0.005",
+          "legendFormat": "{{job}} 1h"
         }
       ],
       "fieldConfig": {
@@ -267,7 +308,7 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Scrape Duration by Job",
+      "title": "Latency Error-Budget Burn Rate",
       "gridPos": {
         "x": 12,
         "y": 6,
@@ -281,13 +322,18 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "scrape_duration_seconds{job=~\"otel-collector|tempo|prometheus|grafana|loki|alloy|alertmanager|blackbox|.*-template-(monolith|fullstack)\"}",
-          "legendFormat": "{{job}}"
+          "expr": "container:slo_latency_errors:ratio5m / 0.005",
+          "legendFormat": "{{job}} 5m"
+        },
+        {
+          "refId": "B",
+          "expr": "container:slo_latency_errors:ratio1h / 0.005",
+          "legendFormat": "{{job}} 1h"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "short",
           "decimals": 2
         },
         "overrides": []
@@ -307,7 +353,7 @@
     {
       "id": 9,
       "type": "row",
-      "title": "Signal Pipeline",
+      "title": "Static SLO Burn",
       "gridPos": {
         "x": 0,
         "y": 14,
@@ -320,11 +366,11 @@
     {
       "id": 10,
       "type": "timeseries",
-      "title": "Collector Span Export Rate",
+      "title": "Probe Availability Error-Budget Burn Rate",
       "gridPos": {
         "x": 0,
         "y": 15,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "datasource": {
@@ -334,13 +380,18 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (exporter) (rate(otelcol_exporter_sent_spans[5m]))",
-          "legendFormat": "{{exporter}}"
+          "expr": "static:slo_availability_errors:ratio5m / 0.001",
+          "legendFormat": "{{service}} 5m"
+        },
+        {
+          "refId": "B",
+          "expr": "static:slo_availability_errors:ratio1h / 0.001",
+          "legendFormat": "{{service}} 1h"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "unit": "short",
           "decimals": 2
         },
         "overrides": []
@@ -360,11 +411,11 @@
     {
       "id": 11,
       "type": "timeseries",
-      "title": "Tempo Request Rate",
+      "title": "Probe Latency Error-Budget Burn Rate",
       "gridPos": {
-        "x": 8,
+        "x": 12,
         "y": 15,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "datasource": {
@@ -374,13 +425,18 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (route) (rate(tempo_request_duration_seconds_count[5m]))",
-          "legendFormat": "{{route}}"
+          "expr": "static:slo_latency_errors:ratio5m / 0.01",
+          "legendFormat": "{{service}} 5m"
+        },
+        {
+          "refId": "B",
+          "expr": "static:slo_latency_errors:ratio1h / 0.01",
+          "legendFormat": "{{service}} 1h"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "short",
           "decimals": 2
         },
         "overrides": []
@@ -395,72 +451,6 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Loki Request Rate",
-      "gridPos": {
-        "x": 16,
-        "y": 15,
-        "w": 8,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count[5m]))",
-          "legendFormat": "{{route}} {{status_code}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 13,
-      "type": "logs",
-      "title": "Stack Logs",
-      "gridPos": {
-        "x": 0,
-        "y": 23,
-        "w": 24,
-        "h": 9
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{compose_service=~\"grafana|prometheus|tempo|loki|alloy|otel-collector\"}"
-        }
-      ],
-      "options": {
-        "showLabels": true,
-        "showTime": true,
-        "wrapLogMessage": true
       }
     }
   ]
