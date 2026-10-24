@@ -10,7 +10,7 @@ x-service-defaults: &service-defaults
 services:
   otel-collector:
     <<: *service-defaults
-    image: otel/opentelemetry-collector-contrib:0.141.0@sha256:b14234c4bc1b7364629af272e564913bb57bdc9736d45b8b6db5ab3417dc75f9
+    image: otel/opentelemetry-collector-contrib:0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
     command: ["--config=/etc/otelcol/config.yml"]
     volumes:
       - ./otel-collector/config.production.yml:/etc/otelcol/config.yml:ro
@@ -25,7 +25,7 @@ services:
 
   prometheus:
     <<: *service-defaults
-    image: prom/prometheus:v3.7.3@sha256:49214755b6153f90a597adcbff0252cc61069f8ab69ce8411285cd4a560e8038
+    image: prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -51,7 +51,7 @@ services:
 
   alertmanager:
     <<: *service-defaults
-    image: prom/alertmanager:v0.34.0@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
@@ -69,7 +69,7 @@ services:
 
   blackbox:
     <<: *service-defaults
-    image: prom/blackbox-exporter:v0.28.0@sha256:e753ff9f3fc458d02cca5eddab5a77e1c175eee484a8925ac7d524f04366c2fc
+    image: prom/blackbox-exporter:v0.29.1@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
     command: ["--config.file=/etc/blackbox/blackbox.yml"]
     volumes:
       - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
@@ -82,7 +82,7 @@ services:
 
   tempo:
     <<: *service-defaults
-    image: grafana/tempo:3.0.2@sha256:cda87c212d8c584dc0b89e337e7ed648a5100feb657e5d528480ee4fa03dbbe3
+    image: grafana/tempo:3.1.1@sha256:64e2fbd56d9c2b3412a4b430a58ea59e91a670b1e75f920a0c702213ad145044
     command: ["-config.file=/etc/tempo.yml"]
     volumes:
       - ./tempo/tempo.production.yml:/etc/tempo.yml:ro
@@ -96,7 +96,7 @@ services:
 
   loki:
     <<: *service-defaults
-    image: grafana/loki:3.6.3@sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
+    image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./loki/loki.production.yml:/etc/loki/loki.yml:ro
@@ -110,7 +110,7 @@ services:
 
   alloy:
     <<: *service-defaults
-    image: grafana/alloy:v1.11.0@sha256:e849f170152aff2015427908463a08c48416abade66302cd880379609058042b
+    image: grafana/alloy:v1.21.1@sha256:4039c971193053a84e53dd9ed3e7d4561c069256b024631cd3498a353ed7ece8
     command:
       - run
       - --storage.path=/var/lib/alloy/data
@@ -128,7 +128,7 @@ services:
 
   grafana:
     <<: *service-defaults
-    image: grafana/grafana:13.1.2@sha256:d177053ab62253815f130d81504f77063baf5fd4ca93299d6048453bd31e047a
+    image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
